@@ -1,0 +1,435 @@
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include "ourvector.h"
+using namespace std;
+
+
+//Step 1: load_db => loading the database. Opens, reads, and stores the contents of the file into specified ourvecotr
+void load_db(ourvector<ourvector<char> > &mainHolder,  ourvector<char> &databaseHolder, ourvector<ourvector<int> > &intValues, ourvector<string> &patients){
+
+    ifstream userFile;
+    string fileContents;
+    int row = 0;
+    
+    mainHolder.clear();
+    patients.clear();
+    intValues.clear();
+
+    string filename;
+    cin >> filename;
+
+    //Open the file
+    userFile.open(filename.c_str());
+
+    cout << "Loading database..." << endl;
+      
+    //Here I check if the file is actually opened
+    if (!userFile.is_open()){
+        cout << "Error: unable to open '" << filename << "'" << endl;
+        return;
+    }
+    else{
+        do{
+            while(getline(userFile, fileContents, '\n')){
+                if(!userFile.fail()){
+                    if(row == 0){ 
+                        for(size_t i = 5; i < fileContents.length(); i++){
+                            if(fileContents[i] == ','){
+                                mainHolder.push_back(databaseHolder);
+                                databaseHolder.clear();
+                            }else{
+                                databaseHolder.push_back(fileContents[i]);
+                            }
+                        }
+                        mainHolder.push_back(databaseHolder); //Fill the 2D vector with databaseHolder vectors
+                    }
+                    else{
+                        int contentLength = fileContents.length();
+                        int temp = 0;
+                        int currentMove = 0;
+                        ourvector<int> tempIntStorage; //A temporary vector to store the integers
+                        do{
+                            currentMove = fileContents.find(",", currentMove);
+                            if(currentMove == string::npos){ //If a match, then end the cycle
+                                break;
+                            }
+                            currentMove++;
+                            if(temp == 0){
+                                
+                                patients.push_back(fileContents.substr(temp, currentMove - 1)); 
+                            }
+                            else{
+                                //By using stoi() I convert a string into an integer
+                                int newNum = stoi(fileContents.substr(temp, currentMove - 1));
+                                tempIntStorage.push_back(newNum);
+                            }
+                            temp = currentMove;
+                        }while(currentMove < contentLength);
+
+                        int finalNum = stoi(fileContents.substr(temp, contentLength));
+                        tempIntStorage.push_back(finalNum);
+                        intValues.push_back(tempIntStorage);
+                    }
+                    row++;
+                    }
+                databaseHolder.clear();
+            }
+        }while(!userFile.eof() && userFile.good());
+    }
+    //Close the file
+    userFile.close();
+}
+
+
+/*Helper function to implement search() => accepts 2 ourvectors + 1 int = index as input
+and return the number of */
+int countStrings(ourvector<char> &dnaHolder, int idx, ourvector<char> &mainHolder){
+
+    int currentStep = 0;
+    int length = mainHolder.size();
+
+    do{
+        if(dnaHolder.at(currentStep+idx) != mainHolder.at(currentStep % length)){
+            break;
+        }
+        currentStep++;
+    }while(currentStep + idx < dnaHolder.size());
+
+    return currentStep/length;
+}
+
+
+//Step 2: display => displays the contents of all specified ourvector containers
+void display(ourvector<ourvector<char>> &mainHolder, ourvector<char> &dnaHolder,  bool &processing, ourvector <ourvector<int>> &intValues, ourvector <string> &patients, ourvector<int> &materials){
+
+    if(mainHolder.size() > 0){
+        cout << "Database loaded:" << endl;
+        for(int row = 0; row < intValues.size(); row++){
+            cout << patients.at(row) << " ";
+            for(int col = 0; col < intValues.at(row).size(); col++){
+                cout << intValues[row][col];
+                if(col != intValues.at(row).size() - 1){
+                    cout << " ";
+                }
+            }
+            cout << endl;
+        }
+    }
+    else{
+        cout << "No database loaded." << endl;
+    }
+     
+    cout << endl;
+
+   //Check the size of the vector to output the needed message and display contents
+   if(dnaHolder.size() > 0){
+        cout << "DNA loaded:" << endl;
+        for(auto element: dnaHolder){
+            cout << element;
+        }
+        cout << endl;
+    }
+    else{
+        cout << "No DNA loaded." << endl;
+    }
+    
+    //Check if DNA has been processed or not
+    if(materials.size() == 0){
+        cout << endl;
+        cout << "No DNA has been processed." << endl;
+    }
+    else{
+        cout << endl;
+        cout << "DNA processed, STR counts:" << endl;
+        for (int i = 0; i < materials.size(); i++){
+            for(auto c: mainHolder.at(i)){
+                cout << c;
+            }
+        cout << ": " << materials.at(i) << endl;
+        }
+    cout << endl;
+    }
+}
+
+
+//Step 3: load_dna => loads the DNA database with contents from the files containing DNA strings
+void load_dna(ourvector<ourvector<char> > &mainHolder, ourvector<char> &dnaHolder){
+
+    char fileContents;
+    ifstream userFile;
+    dnaHolder.clear();
+
+    //The name of our file that we accept from a user via input
+    string filename;
+    cin >> filename;
+
+    //Opening the file
+    userFile.open(filename);
+    
+    cout << "Loading DNA..." << endl;
+
+    //Here I check if the file is actually opened
+    if (!userFile.is_open()){
+        cout << "Error: unable to open '" << filename << "'" << endl;
+        if(mainHolder.size() == 0){
+        }
+    }
+    else{
+        //Reading contents of the file => output the result line by line
+        userFile >> fileContents;
+        
+        while(!userFile.eof()){
+            dnaHolder.push_back(fileContents);
+            userFile >> fileContents;
+        }
+    }
+    //Closing the file
+    userFile.close();
+}
+
+
+/*Helper function to implement search: compares two ourvectors using indices.
+If the match was found => increment the counter + update the new ourvector with this value.
+Finally, return the new vector for further use.*/
+ourvector<int> search(ourvector<char> &dnaHolder, ourvector<ourvector<char>> &mainHolder){
+
+    ourvector<int> materials;
+    int mainLength = mainHolder.size();
+    int dnaLength = dnaHolder.size();
+
+    if(mainLength > 0){
+        for(auto element: mainHolder){
+            int size = element.size();
+            int count = 0;
+            unsigned int i = 0;
+            do{
+                int newInt = countStrings(dnaHolder, i, element); 
+                if(newInt == 0){
+                   i++;
+                }
+                else{
+                     i += newInt * size;
+                }
+                if(newInt > count){
+                    count = newInt;
+                }
+            }while(i < dnaLength);
+            materials.push_back(count);
+        }
+    }
+    return materials;
+}
+
+
+//Step 5: search function
+void search(ourvector<ourvector<char>> &mainHolder, ourvector<char> &dnaHolder, ourvector<ourvector<int>> &intValues, ourvector<string> &patients, ourvector<int> &materials, ourvector<string> &found){
+            
+        //Check if the conditions are satisfied    
+        if (mainHolder.size() == 0){
+            cout << "No database loaded." << endl;
+        } else if (dnaHolder.size() == 0){
+            cout << "No DNA loaded." << endl;
+        } else if (materials.size() == 0){
+            cout << "No DNA processed." << endl;
+        }
+        
+        //If they are then start the nested for loop to compare the values from intValues and materials ourvectors to find the match
+        for(unsigned j = 0; j < intValues.size(); j++){
+            bool searchAlive = true; 
+            for(unsigned int i = 0; i < intValues[j].size(); i++){
+                //Terminate the loop if there is no match
+                if(intValues[j][i] != materials.at(i)){
+                    searchAlive = false;
+                    break;
+                }
+            }
+            //If there was a match, then add the element to the ourvector<string> found
+            if (searchAlive){
+                found.push_back(patients.at(j));
+            }
+        }
+
+        //Check the size of the found vector => if not empty, then display
+        if(found.size() == 0) {
+            cout << "Not found in database." << endl;
+        }
+        else{
+            for(auto name: found){
+                cout << "Found in database! DNA matches: " << name << endl;
+            }
+        }
+}
+
+
+//Helper function which displays the commands while calling the process() function and collects the results in the ourvector for further use
+void processLaunch(ourvector<ourvector<char> > &mainHolder,  ourvector<char> &dnaHolder, ourvector<int> &materials){
+
+     if(mainHolder.size() == 0){
+         cout << "No database loaded." << endl;
+     }else if (dnaHolder.size() == 0){
+         cout << "No DNA loaded." << endl;
+     }else{
+         cout << "Processing DNA..." << endl;
+         materials = search(dnaHolder, mainHolder);
+    }
+}
+        
+
+//Step 6: RNA converter => convert DNA into RNA sequences, then displays the RNA sequence in 2D structure.
+void convert(ourvector<char> &dnaHolder){
+
+    int counter = 4; //Specifies the number of the loop iterations
+    char nucleotide1, nucleotide2;
+    int idx = 0;
+
+    ourvector<char> rnaHolder;
+    
+    for(auto c: dnaHolder){
+        rnaHolder.push_back(c);
+    }
+
+    for(int i = 0; i < rnaHolder.size(); i++){
+        if(rnaHolder.at(i) == 'T'){
+            rnaHolder.at(i) = 'U';
+        }
+        else{
+            rnaHolder.at(i) = rnaHolder.at(i);
+        }
+    }
+    
+    do{
+       int i = 1;
+
+       do{
+            //By doing so, we create a pair of nucleotides: one to the left + one to the right
+            nucleotide1 = rnaHolder[idx]; 
+            nucleotide2 = rnaHolder[idx + 1];
+            idx = idx + 2; //Step => take the next pair
+
+            //Adds space at the beginning of line
+            for(unsigned int j = 5 - i; j >= 1; j--){
+             cout << " ";
+             }
+
+            cout << nucleotide1;
+       
+            //Connects two nucleotides
+            for(unsigned int j = 1; j < i; j++){
+                cout << "==";
+            }
+
+            cout << nucleotide2 << endl;
+
+            i++;
+
+        }while(i <= 5);
+        
+        //Same procedure as described above, but for the lower part of the RNA
+        for(int i = 1; i <= 5; i++){
+            nucleotide1 = rnaHolder[idx];
+            nucleotide2 = rnaHolder[idx + 1];
+            idx += 2;
+
+            for(int j = 1; j < i; j++){
+                cout << " ";
+            }
+
+            cout << nucleotide1;
+
+            for(int j = 5 - i; j >= 1; j--){
+                cout << "==";
+            }
+
+        cout << nucleotide2 << endl;
+        }
+
+    counter--;
+
+    }while(counter > 0);
+
+    cout << endl;
+}
+
+
+//Main function
+int main(){
+    
+    //MainHolder strores the entire file while databaseHolder is used to fill the mainHolder with contents
+    ourvector<ourvector<char> > mainHolder;
+    ourvector<char> databaseHolder;
+
+    //Used to store int values from the file
+    ourvector<ourvector<int> > intValues;
+
+    //Container for the search() function output
+    ourvector<int> materials;
+
+    //Used to store the names of the patients
+    ourvector<string> patients;
+
+    //Used to store the match
+    ourvector<string> found;
+
+    //Used in the "creative" function
+    ourvector<char> dnaHolder;
+
+    //Bool flags to keep the program on/off
+    bool programDead = false;
+    //Determines if the process() was successfully launched
+    bool processing = false;
+    
+    cout << "Welcome to the DNA Profiling Application." << endl;
+    
+    string choice;
+
+    /*Here I implemented the analogue of the switch() command.
+    The program will be running until the user enters "#"*/
+    do{
+        cout << "Enter command or # to exit: ";
+        cin >> choice;
+        
+        if(choice == "load_db"){
+           load_db(mainHolder, databaseHolder, intValues, patients);
+       }
+        if(choice == "display"){
+            display(mainHolder, dnaHolder, processing, intValues, patients, materials);
+       }
+        if(choice == "#"){
+            cout << endl;
+            programDead = true;
+       }
+        if(choice == "load_dna"){
+            load_dna(mainHolder, dnaHolder);
+        }
+        if(choice == "process"){
+            processLaunch(mainHolder, dnaHolder, materials);
+        }
+        if(choice == "search"){
+            if(mainHolder.size() > 0 && dnaHolder.size() > 0 && materials.size() > 0){
+                cout << "Searching database..." << endl;
+                search(mainHolder, dnaHolder, intValues, patients, materials, found);
+            }
+            else if(mainHolder.size() == 0){
+                cout << "No database loaded." << endl;
+                continue;
+            }
+            else if(dnaHolder.size() == 0){
+                cout << "No DNA loaded." << endl;
+                continue;
+            }
+            else if(materials.size() == 0){
+                cout << "No DNA processed." << endl;
+                continue;
+            }
+        }
+        if(choice == "convert"){
+            convert(dnaHolder);
+        }
+        
+    }while(!programDead);
+
+    return 0;
+
+}
+
